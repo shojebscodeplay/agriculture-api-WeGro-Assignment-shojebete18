@@ -49,8 +49,8 @@ agriculture-api/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/shojebscodeplay/agriculture-api-WeGro-assignment.git
-cd agriculture-api-WeGro-assignment
+git clone https://github.com/shojebscodeplay/agriculture-api-WeGro-Assignment-shojebete18.git
+cd agriculture-api-WeGro-Assignment-shojebete18
 ```
 
 ### 2. Create virtual environment and install dependencies
