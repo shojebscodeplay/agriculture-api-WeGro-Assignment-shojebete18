@@ -1,28 +1,9 @@
 import logging
 from typing import Any, Dict
-from app.core.database import fetch_data
+from app.core.database import fetch_data,_extract_active_filters, _build_sql_query
 from app.core.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
-
-
-def _extract_active_filters(**kwargs) -> Dict[str, Any]:
-    """Helper function to remove None values and extract applied filters dynamically."""
-    return {k: v for k, v in kwargs.items() if v is not None}
-
-
-def _build_sql_query(base_view: str, filters: Dict[str, Any]) -> tuple:
-    if not filters:
-        return f"SELECT * FROM {base_view}", {}
-    
-    conditions = []
-    params = {}
-    for key, value in filters.items():
-        conditions.append(f"{key} = %({key})s")
-        params[key] = value
-        
-    query = f"SELECT * FROM {base_view} WHERE {' AND '.join(conditions)}"
-    return query, params
 
 def get_price_comparison(market_type=None, crop_category=None, year=None, season=None, price_tier=None, district=None):
     try:
