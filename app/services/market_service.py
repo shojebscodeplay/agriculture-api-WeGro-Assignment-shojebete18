@@ -1,5 +1,4 @@
 import logging
-from typing import Any, Dict
 from app.core.database import fetch_data,_extract_active_filters, _build_sql_query
 from app.core.exceptions import DatabaseError
 

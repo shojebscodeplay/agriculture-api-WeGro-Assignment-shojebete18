@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Query
 from app.services.market_service import get_price_comparison
-from app.core.enum import MarketTypeEnum, CropCategoryEnum, SeasonEnum, YearEnum, Price_tierEnum
+from app.core.enum import MarketTypeEnum, CropCategoryEnum, SeasonEnum, YearEnum, Price_tierEnum, DistrictEnum
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ def price_comparison(
     year: YearEnum = Query(None, description="Filter by year"),
     season: SeasonEnum = Query(None, description="Filter by season"),
     price_tier: Price_tierEnum = Query(None, description="Filter by price tier"),
-    district: str = Query(None, description="Filter by district"),
+    district: DistrictEnum = Query(None, description="Filter by district"),
 ):
     return get_price_comparison(
         market_type=market_type.value if market_type else None,

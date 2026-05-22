@@ -1,6 +1,5 @@
 import logging
 import pandas as pd
-from typing import Any, Dict
 from app.core.database import fetch_data, _extract_active_filters, _build_sql_query
 from app.core.exceptions import InvalidFilterError, DatabaseError, RecordNotFoundError
 
@@ -13,7 +12,7 @@ VALID_FILTERS = {
     "year": [2022, 2023, 2024],
 }
 
-def validate_filter(field: str, value: Any) -> None:
+def validate_filter(field: str, value: any) -> None:
     if value and value not in VALID_FILTERS[field]:
         raise InvalidFilterError(
             field=field,

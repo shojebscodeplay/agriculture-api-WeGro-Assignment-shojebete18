@@ -56,17 +56,5 @@ def _build_sql_query(base_view: str, filters: dict[str, any]) -> tuple:
 
 
 if __name__ == "__main__":
-    df = fetch_data("SELECT * FROM vw_harvest_full")
-    crop_dim = fetch_data("SELECT * FROM dim_crop")
-    df = df.merge(crop_dim, on="crop_name", how="left")
-    
-    grouped = df.groupby(["crop_name", "crop_category_x"]).agg(
-        total_harvested=("quantity_harvested_ton", "sum"),
-        total_area=("area_planted_ha", "sum"),
-        benchmark=("avg_yield_ton_per_ha", "first"),
-    ).reset_index()
-    
-    grouped["actual"] = round(grouped["total_harvested"] / grouped["total_area"], 2)
-    grouped["efficiency"] = round((grouped["actual"] / grouped["benchmark"]) * 100, 1)
-    
-    print(grouped[["crop_name", "total_harvested", "total_area", "actual", "benchmark", "efficiency"]])
+    df = fetch_data("SELECT DISTINCT farm_district FROM vw_harvest_full ORDER BY farm_district")
+    print(df["farm_district"].tolist())
