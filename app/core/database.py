@@ -25,10 +25,10 @@ def get_engine():
         logger.error(f"Database connection failed: {e}")
         raise
 
-def fetch_data(query: str) -> pd.DataFrame:
+def fetch_data(query: str, params: dict = None) -> pd.DataFrame:
     try:
         engine = get_engine()
-        df = pd.read_sql(query, engine)
+        df = pd.read_sql(query, engine, params=params)
         logger.info(f"Query executed successfully, rows returned: {len(df)}")
         return df
     except Exception as e:

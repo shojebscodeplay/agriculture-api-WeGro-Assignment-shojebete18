@@ -1,4 +1,4 @@
-# Agriculture API — WeGro Technologies Ltd. Assignment
+# Agriculture API — WeGrow Technologies Ltd. Assignment
 
 A production-ready REST API built with **FastAPI**, **Pandas**, and **MySQL** to analyze agricultural farm and crop performance data across Bangladesh.
 
@@ -35,7 +35,6 @@ agriculture-api/
 │       ├── farm_service.py   # Farm business logic
 │       ├── crop_service.py   # Crop business logic
 │       └── market_service.py # Market business logic
-├── .env                      # DB credentials (not committed)
 ├── .env.example              # Example env file
 ├── requirements.txt
 ├── Dockerfile
@@ -49,11 +48,11 @@ agriculture-api/
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/shojebscodeplay/agriculture-api-WeGro-assignment.git
-cd agriculture-api-WeGro-assignment
+git clone https://github.com/shojebscodeplay/agriculture-api-WeGro-Assignment-shojebete18.git
+cd agriculture-api-WeGro-Assignment-shojebete18
 ```
 
-### 2. Create virtual environment and install dependencies
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -150,15 +149,44 @@ GET /crops/quality-breakdown?crop_category=Fruit&region=Rajshahi
 
 ---
 
-## Running with Docker
+## Performance & Optimization
 
-```bash
-# Build the image
-docker build -t agriculture-api .
+### SQL-Level Filtering
+All endpoints build targeted SQL queries with `WHERE` conditions — instead of loading the full dataset into memory and filtering in Pandas.
 
-# Run the container
-docker run -p 8000:8000 --env-file .env agriculture-api
+```python
+# Before — loads all 220+ rows
+df = fetch_data("SELECT * FROM vw_harvest_full")
+
+# After — fetches only matching rows
+query = "SELECT * FROM vw_harvest_full WHERE region = %(region)s AND year = %(year)s"
 ```
+
+This applies to **all 8 endpoints** — not just one.
+
+### SQL Injection Prevention
+All query parameters are passed as parameterized values using PyMySQL's `%(key)s` syntax — never interpolated directly into the query string.
+
+```python
+# Safe — parameterized
+conditions.append(f"{key} = %({key})s")
+params[key] = value
+
+# Unsafe — never done
+conditions.append(f"{key} = '{value}'")
+```
+
+### Recommended Database Indexes
+Adding these indexes to the database will further improve query speed across all endpoints:
+
+```sql
+CREATE INDEX idx_farm_id ON fact_harvest_sales(farm_id);
+CREATE INDEX idx_year ON dim_date(year);
+CREATE INDEX idx_crop_category ON dim_crop(crop_category);
+CREATE INDEX idx_market_type ON dim_market(market_type);
+```
+
+> These indexes are not required to run the API but are recommended for production environments with large datasets.
 
 ---
 
@@ -173,10 +201,22 @@ docker run -p 8000:8000 --env-file .env agriculture-api
 
 ---
 
+## Running with Docker
+
+```bash
+# Build the image
+docker build -t agriculture-api .
+
+# Run the container
+docker run -p 8000:8000 --env-file .env agriculture-api
+```
+
+---
+
 ## Database Views Used
 
 | View | Description |
 |---|---|
-| `vw_harvest_full` | All tables joined — main data source |
+| `vw_harvest_full` | All tables joined — main data source for all endpoints |
 | `vw_farm_profitability` | Farm-wise profit and loss summary |
 | `vw_revenue_by_crop_year` | Revenue grouped by crop and year |

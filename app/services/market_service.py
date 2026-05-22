@@ -1,26 +1,51 @@
 import logging
+from typing import Any, Dict
 from app.core.database import fetch_data
 from app.core.exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 
 
+def _extract_active_filters(**kwargs) -> Dict[str, Any]:
+    """Helper function to remove None values and extract applied filters dynamically."""
+    return {k: v for k, v in kwargs.items() if v is not None}
+
+
+def _build_sql_query(base_view: str, filters: Dict[str, Any]) -> tuple:
+    if not filters:
+        return f"SELECT * FROM {base_view}", {}
+    
+    conditions = []
+    params = {}
+    for key, value in filters.items():
+        conditions.append(f"{key} = %({key})s")
+        params[key] = value
+        
+    query = f"SELECT * FROM {base_view} WHERE {' AND '.join(conditions)}"
+    return query, params
+
 def get_price_comparison(market_type=None, crop_category=None, year=None, season=None, price_tier=None, district=None):
     try:
-        df = fetch_data("SELECT * FROM vw_harvest_full")
+        filters_applied = _extract_active_filters(
+            market_type=market_type, crop_category=crop_category, 
+            year=year, season=season, price_tier=price_tier, district=district
+        )
 
-        if market_type:
-            df = df[df["market_type"] == market_type]
-        if crop_category:
-            df = df[df["crop_category"] == crop_category]
-        if year:
-            df = df[df["year"] == year]
-        if season:
-            df = df[df["season"] == season]
-        if price_tier:
-            df = df[df["price_tier"] == price_tier]
-        if district:
-            df = df[df["farm_district"] == district]
+        sql_filters = {}
+        for key, value in filters_applied.items():
+            if key == "district":
+                sql_filters["farm_district"] = value
+            else:
+                sql_filters[key] = value
+
+        query, params = _build_sql_query("vw_harvest_full", sql_filters)
+        df = fetch_data(query, params)
+
+        if df.empty:
+            return {
+                "filters_applied": filters_applied,
+                "comparison": []
+            }
 
         grouped = df.groupby(["market_name", "market_type", "price_tier", "farm_district", "crop_name"]).agg(
             avg_price_per_ton_bdt=("price_per_ton_bdt", "mean"),
@@ -30,30 +55,18 @@ def get_price_comparison(market_type=None, crop_category=None, year=None, season
 
         grouped["avg_price_per_ton_bdt"] = grouped["avg_price_per_ton_bdt"].round(0)
 
-        filters_applied = {}
-        if market_type:
-            filters_applied["market_type"] = market_type
-        if crop_category:
-            filters_applied["crop_category"] = crop_category
-        if year:
-            filters_applied["year"] = year
-        if season:
-            filters_applied["season"] = season
-        if price_tier:
-            filters_applied["price_tier"] = price_tier
-        if district:
-            filters_applied["district"] = district
+        comparison_data = grouped[[
+            "market_name", "market_type", "price_tier",
+            "farm_district", "crop_name",
+            "avg_price_per_ton_bdt", "total_quantity_sold_ton",
+            "total_revenue_bdt"
+        ]].rename(columns={
+            "farm_district": "district"
+        }).to_dict(orient="records")
 
         return {
             "filters_applied": filters_applied,
-            "comparison": grouped[[
-                "market_name", "market_type", "price_tier",
-                "farm_district", "crop_name",
-                "avg_price_per_ton_bdt", "total_quantity_sold_ton",
-                "total_revenue_bdt"
-            ]].rename(columns={
-                "farm_district": "district"
-            }).to_dict(orient="records")
+            "comparison": comparison_data
         }
 
     except Exception as e:

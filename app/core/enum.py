@@ -53,3 +53,9 @@ class QualityGradeEnum(str, Enum):
     b = "B"
     c = "C"
     d = "D"
+    
+class Price_tierEnum(str,Enum):
+    Low = "Low",
+    Medium = "Medium", 
+    High = "High",
+    Premium = "Premium" 

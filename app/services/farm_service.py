@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+from typing import Any, Dict
 from app.core.database import fetch_data
 from app.core.exceptions import InvalidFilterError, DatabaseError, RecordNotFoundError
 
@@ -12,7 +13,7 @@ VALID_FILTERS = {
     "year": [2022, 2023, 2024],
 }
 
-def validate_filter(field: str, value):
+def validate_filter(field: str, value: Any) -> None:
     if value and value not in VALID_FILTERS[field]:
         raise InvalidFilterError(
             field=field,
@@ -20,6 +21,24 @@ def validate_filter(field: str, value):
             allowed=VALID_FILTERS[field]
         )
 
+
+def _extract_active_filters(**kwargs) -> Dict[str, Any]:
+    """Helper function to remove None values and extract applied filters dynamically."""
+    return {k: v for k, v in kwargs.items() if v is not None}
+
+
+def _build_sql_query(base_view: str, filters: Dict[str, Any]) -> tuple:
+    if not filters:
+        return f"SELECT * FROM {base_view}", {}
+    
+    conditions = []
+    params = {}
+    for key, value in filters.items():
+        conditions.append(f"{key} = %({key})s")
+        params[key] = value
+        
+    query = f"SELECT * FROM {base_view} WHERE {' AND '.join(conditions)}"
+    return query, params
 
 def get_farm_summary(region=None, farm_type=None, year=None, season=None):
     try:
@@ -29,16 +48,12 @@ def get_farm_summary(region=None, farm_type=None, year=None, season=None):
         if year:
             validate_filter("year", year)
 
-        df = fetch_data("SELECT * FROM vw_harvest_full")
+        filters_applied = _extract_active_filters(region=region, farm_type=farm_type, year=year, season=season)
+        query, params = _build_sql_query("vw_harvest_full", filters_applied)
+        df = fetch_data(query, params)
 
-        if region:
-            df = df[df["region"] == region]
-        if farm_type:
-            df = df[df["farm_type"] == farm_type]
-        if year:
-            df = df[df["year"] == year]
-        if season:
-            df = df[df["season"] == season]
+        if df.empty:
+            return {"total_farms": 0, "filters_applied": filters_applied, "data": []}
 
         grouped = df.groupby(["farm_name", "region", "farm_type"]).agg(
             total_revenue_bdt=("revenue_bdt", "sum"),
@@ -46,16 +61,6 @@ def get_farm_summary(region=None, farm_type=None, year=None, season=None):
             total_profit_bdt=("net_profit_bdt", "sum"),
             avg_loss_pct=("quantity_lost_ton", "mean"),
         ).reset_index()
-
-        filters_applied = {}
-        if region:
-            filters_applied["region"] = region
-        if farm_type:
-            filters_applied["farm_type"] = farm_type
-        if year:
-            filters_applied["year"] = year
-        if season:
-            filters_applied["season"] = season
 
         result = grouped[[
             "farm_name", "region", "farm_type",
@@ -74,45 +79,36 @@ def get_farm_summary(region=None, farm_type=None, year=None, season=None):
     except Exception as e:
         logger.error(f"get_farm_summary failed: {e}")
         raise DatabaseError(str(e))
+
+
 def get_farm_performance(farm_id: int, year=None, crop_category=None, market_type=None):
     try:
-        farm_df = fetch_data(f"SELECT * FROM dim_farm WHERE farm_id = {farm_id}")
+        farm_df = fetch_data(f"SELECT farm_name, owner_name, region FROM dim_farm WHERE farm_id = {farm_id}")
         if farm_df.empty:
             raise RecordNotFoundError(resource="farm", identifier=farm_id)
         
-        farm_name = farm_df.iloc[0]["farm_name"]
-        owner = farm_df.iloc[0]["owner_name"]
-        region = farm_df.iloc[0]["region"]
+        farm_row = farm_df.iloc[0]
+        farm_name = farm_row["farm_name"]
         
-        df = fetch_data(f"SELECT * FROM vw_harvest_full WHERE farm_name = '{farm_name}'")
+        filters_applied = _extract_active_filters(year=year, crop_category=crop_category, market_type=market_type)
+        
+        sql_filters = {"farm_name": farm_name, **filters_applied}
+        query, params = _build_sql_query("vw_harvest_full", sql_filters)
+        df = fetch_data(query, params)
 
-        if year:
-            df = df[df["year"] == year]
-        if crop_category:
-            df = df[df["crop_category"] == crop_category]
-        if market_type:
-            df = df[df["market_type"] == market_type]
-
-        filters_applied = {}
-
-        if year:
-            filters_applied["year"] = year
-        if crop_category:
-            filters_applied["crop_category"] = crop_category
-        if market_type:
-            filters_applied["market_type"] = market_type
-
-        performance = df[[
-            "crop_name", "year", "market_type",
-            "quantity_sold_ton", "revenue_bdt",
-            "net_profit_bdt", "quality_grade"
-        ]].to_dict(orient="records")
+        performance = []
+        if not df.empty:
+            performance = df[[
+                "crop_name", "year", "market_type",
+                "quantity_sold_ton", "revenue_bdt",
+                "net_profit_bdt", "quality_grade"
+            ]].to_dict(orient="records")
 
         return {
             "farm_id": farm_id,
             "farm_name": farm_name,
-            "owner": owner,
-            "region": region,
+            "owner": farm_row["owner_name"],
+            "region": farm_row["region"],
             "filters_applied": filters_applied,
             "performance": performance
         }
@@ -123,12 +119,17 @@ def get_farm_performance(farm_id: int, year=None, crop_category=None, market_typ
         logger.error(f"get_farm_performance failed: {e}")
         raise DatabaseError(str(e))
     
+
 def get_top_farms(metric="profit", region=None, farm_type=None, year=None, limit=10):
     try:
-        df = fetch_data("SELECT * FROM vw_harvest_full")
+        filters_applied = _extract_active_filters(region=region, farm_type=farm_type, year=year)
+        
+        sql_filters = {"year": year} if year else {}
+        query, params = _build_sql_query("vw_harvest_full", sql_filters)
+        df = fetch_data(query, params)
 
-        if year:
-            df = df[df["year"] == year]
+        if df.empty:
+            return {"metric": metric, "filters_applied": {**filters_applied, "limit": limit}, "rankings": []}
 
         grouped = df.groupby(["farm_name", "region", "farm_type"]).agg(
             net_profit_bdt=("net_profit_bdt", "sum"),
@@ -141,24 +142,16 @@ def get_top_farms(metric="profit", region=None, farm_type=None, year=None, limit
         if farm_type:
             grouped = grouped[grouped["farm_type"] == farm_type]
 
-        if metric == "profit":
-            grouped = grouped.sort_values("net_profit_bdt", ascending=False)
-        elif metric == "revenue":
-            grouped = grouped.sort_values("total_revenue_bdt", ascending=False)
-        elif metric == "yield":
-            grouped = grouped.sort_values("total_yield", ascending=False)
-
-        grouped = grouped.head(limit)
-
+        metric_mapping = {
+            "profit": "net_profit_bdt",
+            "revenue": "total_revenue_bdt",
+            "yield": "total_yield"
+        }
+        
+        sort_column = metric_mapping.get(metric, "net_profit_bdt")
+        grouped = grouped.sort_values(sort_column, ascending=False).head(limit)
         grouped["rank"] = range(1, len(grouped) + 1)
 
-        filters_applied = {}
-        if region:
-            filters_applied["region"] = region
-        if farm_type:
-            filters_applied["farm_type"] = farm_type
-        if year:
-            filters_applied["year"] = year
         filters_applied["limit"] = limit
 
         return {
@@ -175,24 +168,23 @@ def get_top_farms(metric="profit", region=None, farm_type=None, year=None, limit
         logger.error(f"get_top_farms failed: {e}")
         raise DatabaseError(str(e))
     
+
 def get_loss_analysis(region=None, year=None, season=None, quality_grade=None, crop_category=None):
     try:
-        df = fetch_data("SELECT * FROM vw_harvest_full")
+        filters_applied = _extract_active_filters(
+            region=region, year=year, season=season, 
+            quality_grade=quality_grade, crop_category=crop_category
+        )
+        
+        query, params = _build_sql_query("vw_harvest_full", filters_applied)
+        df = fetch_data(query, params)
 
-        if year:
-            df = df[df["year"] == year]
-
-        if region:
-            df = df[df["region"] == region]
-
-        if season:
-            df = df[df["season"] == season]
-
-        if quality_grade:
-            df = df[df["quality_grade"] == quality_grade]
-
-        if crop_category:
-            df = df[df["crop_category"] == crop_category]
+        if df.empty:
+            return {
+                "filters_applied": filters_applied,
+                "summary": {"total_harvested_ton": 0, "total_lost_ton": 0, "overall_loss_pct": 0},
+                "breakdown": []
+            }
 
         grouped = df.groupby(
             ["region", "season", "crop_category", "quality_grade"]
@@ -214,28 +206,8 @@ def get_loss_analysis(region=None, year=None, season=None, quality_grade=None, c
         summary_data = {
             "total_harvested_ton": round(total_harvested, 1),
             "total_lost_ton": round(total_lost, 1),
-            "overall_loss_pct": round(
-                (total_lost / total_harvested) * 100,
-                2
-            ) if total_harvested > 0 else 0
+            "overall_loss_pct": round((total_lost / total_harvested) * 100, 2) if total_harvested > 0 else 0
         }
-
-        filters_applied = {}
-
-        if region:
-            filters_applied["region"] = region
-
-        if year:
-            filters_applied["year"] = year
-
-        if season:
-            filters_applied["season"] = season
-
-        if quality_grade:
-            filters_applied["quality_grade"] = quality_grade
-
-        if crop_category:
-            filters_applied["crop_category"] = crop_category
 
         return {
             "filters_applied": filters_applied,
