@@ -55,6 +55,10 @@ def _build_sql_query(base_view: str, filters: dict[str, any]) -> tuple:
     return query, params
 
 
+# if __name__ == "__main__":
+#     df = fetch_data("SELECT * FROM vw_harvest_full")
+#     print(df.columns.tolist())
+        
 if __name__ == "__main__":
-    df = fetch_data("SELECT DISTINCT farm_district FROM vw_harvest_full ORDER BY farm_district")
-    print(df["farm_district"].tolist())
+    df = fetch_data("SELECT DISTINCT pesticide_residue FROM vw_harvest_full")
+    print(df["pesticide_residue"].tolist())

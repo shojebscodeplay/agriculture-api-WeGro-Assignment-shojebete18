@@ -1,12 +1,10 @@
 import logging
 from fastapi import APIRouter, Query
 from app.services.crop_service import get_yield_efficiency, get_seasonal_trend, get_quality_breakdown
-from app.core.enum import RegionEnum, CropCategoryEnum, SeasonEnum, YearEnum, MarketTypeEnum
-
+from app.core.enum import RegionEnum, CropCategoryEnum, SeasonEnum, YearEnum, MarketTypeEnum, WaterRequiredEnum , PesticideResidue, CropNameEnum
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crops", tags=["Crops"])
-
 
 @router.get("/yield-efficiency")
 def yield_efficiency(
@@ -14,7 +12,7 @@ def yield_efficiency(
     crop_category: CropCategoryEnum = Query(None, description="Filter by crop category"),
     year: YearEnum = Query(None, description="Filter by year"),
     season: SeasonEnum = Query(None, description="Filter by season"),
-    water_requirement: str = Query(None, description="Filter by water requirement"),
+    water_requirement: WaterRequiredEnum  = Query(None, description="Filter by water requirement"),
 ):
     return get_yield_efficiency(
         region=region.value if region else None,
@@ -27,7 +25,7 @@ def yield_efficiency(
 
 @router.get("/seasonal-trend")
 def seasonal_trend(
-    crop_name: str = Query(None, description="Filter by crop name"),
+    crop_name: CropNameEnum = Query(None, description="Filter by crop name"),
     crop_category: CropCategoryEnum = Query(None, description="Filter by crop category"),
     year: YearEnum = Query(None, description="Filter by year"),
     quarter: int = Query(None, description="Filter by quarter (1-4)"),
@@ -49,7 +47,7 @@ def quality_breakdown(
     year: YearEnum = Query(None, description="Filter by year"),
     region: RegionEnum = Query(None, description="Filter by region"),
     market_type: MarketTypeEnum = Query(None, description="Filter by market type"),
-    pesticide_residue: str = Query(None, description="Filter by pesticide residue"),
+    pesticide_residue: PesticideResidue = Query(None, description="Filter by pesticide residue"),
 ):
     return get_quality_breakdown(
         crop_id=crop_id,

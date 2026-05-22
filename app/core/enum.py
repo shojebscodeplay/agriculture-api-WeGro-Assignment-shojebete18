@@ -90,3 +90,44 @@ class DistrictEnum(str, Enum):
     SUNAMGANJ = "Sunamganj"
     SYLHET = "Sylhet"
     TANGAIL = "Tangail"
+
+class WaterRequiredEnum(str, Enum):
+    High = "High"
+    Medium = "Medium"
+    Low = "Low"
+    
+from enum import Enum
+
+
+class CropNameEnum(str, Enum):
+    AMAN_RICE = "Aman Rice"
+    BORO_RICE = "Boro Rice"
+    AUS_RICE = "Aus Rice"
+
+    WHEAT = "Wheat"
+    MAIZE = "Maize"
+
+    POTATO = "Potato"
+    TOMATO = "Tomato"
+    ONION = "Onion"
+    GARLIC = "Garlic"
+    BRINJAL = "Brinjal"
+
+    MUSTARD = "Mustard"
+    SOYBEAN = "Soybean"
+    LENTIL = "Lentil"
+
+    JUTE = "Jute"
+    SUGARCANE = "Sugarcane"
+
+    MANGO = "Mango"
+    BANANA = "Banana"
+    JACKFRUIT = "Jackfruit"
+
+    TURMERIC = "Turmeric"
+    CHILLI = "Chilli"
+    
+class PesticideResidue(str, Enum):
+    NONE = "None"
+    TRACE = "Trace"
+    LOW = "Low"
