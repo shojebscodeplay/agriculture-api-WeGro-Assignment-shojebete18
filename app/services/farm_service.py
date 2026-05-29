@@ -40,8 +40,13 @@ def get_farm_summary(region=None, farm_type=None, year=None, season=None):
             total_revenue_bdt=("revenue_bdt", "sum"),
             total_cost_bdt=("input_cost_bdt", "sum"),
             total_profit_bdt=("net_profit_bdt", "sum"),
-            avg_loss_pct=("quantity_lost_ton", "mean"),
+            total_lost_ton=("quantity_lost_ton", "sum"),
+            total_harvested_ton=("quantity_harvested_ton", "sum"),
         ).reset_index()
+
+        grouped["avg_loss_pct"] = round(
+            (grouped["total_lost_ton"] / grouped["total_harvested_ton"]) * 100, 2
+        )
 
         result = grouped[[
             "farm_name", "region", "farm_type",
@@ -105,8 +110,7 @@ def get_top_farms(metric="profit", region=None, farm_type=None, year=None, limit
     try:
         filters_applied = _extract_active_filters(region=region, farm_type=farm_type, year=year)
         
-        sql_filters = {"year": year} if year else {}
-        query, params = _build_sql_query("vw_harvest_full", sql_filters)
+        query, params = _build_sql_query("vw_harvest_full", filters_applied)
         df = fetch_data(query, params)
 
         if df.empty:
@@ -118,10 +122,6 @@ def get_top_farms(metric="profit", region=None, farm_type=None, year=None, limit
             total_yield=("quantity_harvested_ton", "sum"),
         ).reset_index()
 
-        if region:
-            grouped = grouped[grouped["region"] == region]
-        if farm_type:
-            grouped = grouped[grouped["farm_type"] == farm_type]
 
         metric_mapping = {
             "profit": "net_profit_bdt",
