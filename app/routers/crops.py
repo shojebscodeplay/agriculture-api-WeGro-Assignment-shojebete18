@@ -1,7 +1,7 @@
 import logging
 from fastapi import APIRouter, Query
 from app.services.crop_service import get_yield_efficiency, get_seasonal_trend, get_quality_breakdown
-from app.core.enum import RegionEnum, CropCategoryEnum, SeasonEnum, YearEnum, MarketTypeEnum, WaterRequiredEnum , PesticideResidue, CropNameEnum
+from app.core.enum import RegionEnum, CropCategoryEnum, SeasonEnum, YearEnum, MarketTypeEnum, WaterRequiredEnum , PesticideResidue, CropNameEnum, QuarterEnum
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/crops", tags=["Crops"])
@@ -19,7 +19,7 @@ def yield_efficiency(
         crop_category=crop_category.value if crop_category else None,
         year=year.value if year else None,
         season=season.value if season else None,
-        water_requirement=water_requirement,
+        water_requirement=water_requirement.value if water_requirement else None,
     )
 
 
@@ -28,14 +28,14 @@ def seasonal_trend(
     crop_name: CropNameEnum = Query(None, description="Filter by crop name"),
     crop_category: CropCategoryEnum = Query(None, description="Filter by crop category"),
     year: YearEnum = Query(None, description="Filter by year"),
-    quarter: int = Query(None, description="Filter by quarter (1-4)"),
+    quarter: QuarterEnum = Query(None, description="Filter by quarter (1-4)"),
     market_type: MarketTypeEnum = Query(None, description="Filter by market type"),
 ):
     return get_seasonal_trend(
-        crop_name=crop_name,
+        crop_name=crop_name.value if crop_name else None, 
         crop_category=crop_category.value if crop_category else None,
         year=year.value if year else None,
-        quarter=quarter,
+        quarter=quarter.value if quarter else None ,
         market_type=market_type.value if market_type else None,
     )
 
@@ -55,5 +55,5 @@ def quality_breakdown(
         year=year.value if year else None,
         region=region.value if region else None,
         market_type=market_type.value if market_type else None,
-        pesticide_residue=pesticide_residue,
+        pesticide_residue=pesticide_residue.value if pesticide_residue else None,
     )

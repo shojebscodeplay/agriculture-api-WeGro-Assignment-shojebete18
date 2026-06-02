@@ -96,7 +96,6 @@ class WaterRequiredEnum(str, Enum):
     Medium = "Medium"
     Low = "Low"
     
-from enum import Enum
 
 
 class CropNameEnum(str, Enum):
@@ -131,3 +130,9 @@ class PesticideResidue(str, Enum):
     NONE = "None"
     TRACE = "Trace"
     LOW = "Low"
+    
+class QuarterEnum(int, Enum):
+    q1 = 1
+    q2 = 2
+    q3 = 3
+    q4 = 4

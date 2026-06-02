@@ -22,6 +22,6 @@ def price_comparison(
         crop_category=crop_category.value if crop_category else None,
         year=year.value if year else None,
         season=season.value if season else None,
-        price_tier=price_tier,
-        district=district,
+        price_tier=price_tier.value if price_tier else None,
+        district=district.value if district else None,
     )

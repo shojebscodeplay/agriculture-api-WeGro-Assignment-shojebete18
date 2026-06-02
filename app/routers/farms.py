@@ -1,5 +1,4 @@
 import logging
-from operator import ge
 from fastapi import APIRouter, Query
 from app.services.farm_service import get_farm_summary, get_farm_performance, get_top_farms , get_loss_analysis
 from app.core.enum import RegionEnum, FarmTypeEnum, YearEnum, CropCategoryEnum, MarketTypeEnum, MetricEnum,SeasonEnum, QualityGradeEnum
