@@ -1,4 +1,4 @@
-# Agriculture API — WeGrow Technologies Ltd. Assignment
+# Agriculture API — WeGro Technologies Ltd. Assignment
 
 A production-ready REST API built with **FastAPI**, **Pandas**, and **MySQL** to analyze agricultural farm and crop performance data across Bangladesh.
 
