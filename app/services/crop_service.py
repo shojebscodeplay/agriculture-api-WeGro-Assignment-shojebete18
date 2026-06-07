@@ -14,8 +14,6 @@ def get_yield_efficiency(region=None, crop_category=None, year=None, season=None
         )
 
         sql_filters = filters_applied.copy()
-        if "crop_category" in sql_filters:
-            sql_filters["crop_category"] = sql_filters.pop("crop_category")
 
         harvest_query, harvest_params = _build_sql_query("vw_harvest_full", {k: v for k, v in sql_filters.items() if k != "water_requirement"})
         df = fetch_data(harvest_query, harvest_params)
@@ -108,16 +106,13 @@ def get_quality_breakdown(crop_id=None, crop_category=None, year=None, region=No
             region=region, market_type=market_type, pesticide_residue=pesticide_residue
         )
 
-        sql_filters = {k: v for k, v in filters_applied.items() if k not in ["crop_id", "pesticide_residue"]}
+        sql_filters = {k: v for k, v in filters_applied.items() if k != "crop_id"}
         
         if crop_id:
             crop_df = fetch_data(f"SELECT crop_name FROM dim_crop WHERE crop_id = {crop_id}")
             if not crop_df.empty:
                 sql_filters["crop_name"] = crop_df.iloc[0]["crop_name"]
         
-        if pesticide_residue:
-            sql_filters["pesticide_residue"] = pesticide_residue
-
         query, params = _build_sql_query("vw_harvest_full", sql_filters)
         df = fetch_data(query, params)
 

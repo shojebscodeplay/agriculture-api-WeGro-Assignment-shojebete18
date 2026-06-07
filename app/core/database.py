@@ -1,64 +1,62 @@
 import os
 import logging
+from typing import Any
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
 from dotenv import load_dotenv
 
 load_dotenv()
-
 logger = logging.getLogger(__name__)
 
-def get_engine():
-    try:
-        host = os.getenv("HOST")
-        port = os.getenv("PORT")
-        user = os.getenv("USER")
-        password = os.getenv("PASSWORD")
-        db = os.getenv("DB")
+ALLOWED_VIEWS = {"vw_harvest_full"}
 
-        engine = create_engine(
-            f"mysql+pymysql://{user}:{password}@{host}:{port}/{db}"
+_engine: Engine | None = None
+
+
+def get_engine() -> Engine:
+    global _engine
+    if _engine is not None:
+        return _engine
+    try:
+        url = (
+            f"mysql+pymysql://{os.getenv('USER')}:{os.getenv('PASSWORD')}"
+            f"@{os.getenv('HOST')}:{os.getenv('PORT')}/{os.getenv('DB')}"
+        )
+        _engine = create_engine(
+            url,
+            pool_size=5,
+            max_overflow=10,
+            pool_pre_ping=True,
         )
         logger.info("Database engine created successfully")
-        return engine
-    except Exception as e:
-        logger.error(f"Database connection failed: {e}")
+        return _engine
+    except Exception:
+        logger.error("Database engine creation failed", exc_info=True)
         raise
 
-def fetch_data(query: str, params: dict = None) -> pd.DataFrame:
+
+def fetch_data(query: str, params: dict[str, Any] | None = None) -> pd.DataFrame:
     try:
         engine = get_engine()
-        df = pd.read_sql(query, engine, params=params)
-        logger.info(f"Query executed successfully, rows returned: {len(df)}")
+        with engine.connect() as conn:
+            df = pd.read_sql(text(query), conn, params=params)
+        logger.info("Query executed successfully, rows returned: %d", len(df))
         return df
-    except Exception as e:
-        logger.error(f"Query failed: {e}")
+    except Exception:
+        logger.error("Query execution failed", exc_info=True)
         raise
-    
-    
-def _extract_active_filters(**kwargs) -> dict[str, any]:
-    """Helper function to remove None values and extract applied filters dynamically."""
+
+
+def _extract_active_filters(**kwargs) -> dict[str, Any]:
     return {k: v for k, v in kwargs.items() if v is not None}
 
 
-def _build_sql_query(base_view: str, filters: dict[str, any]) -> tuple:
+def _build_sql_query(base_view: str, filters: dict[str, Any]) -> tuple[str, dict]:
+    if base_view not in ALLOWED_VIEWS:
+        raise ValueError(f"Unauthorized view: {base_view}")
     if not filters:
         return f"SELECT * FROM {base_view}", {}
-    
-    conditions = []
-    params = {}
-    for key, value in filters.items():
-        conditions.append(f"{key} = %({key})s")
-        params[key] = value
-        
+    conditions = [f"{k} = :{k}" for k in filters]  # SQLAlchemy :param style
     query = f"SELECT * FROM {base_view} WHERE {' AND '.join(conditions)}"
-    return query, params
-
-
-# if __name__ == "__main__":
-#     df = fetch_data("SELECT * FROM vw_harvest_full")
-#     print(df.columns.tolist())
-        
-if __name__ == "__main__":
-    df = fetch_data("SELECT DISTINCT pesticide_residue FROM vw_harvest_full")
-    print(df["pesticide_residue"].tolist())
+    return query, filters

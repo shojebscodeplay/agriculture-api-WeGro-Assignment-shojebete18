@@ -52,3 +52,7 @@ def get_price_comparison(market_type=None, crop_category=None, year=None, season
     except Exception as e:
         logger.error(f"get_price_comparison failed: {e}")
         raise DatabaseError(str(e))
+    
+if __name__ == "__main__":
+    result = get_price_comparison(district="Gazipur", year=2023)
+    print(result)
